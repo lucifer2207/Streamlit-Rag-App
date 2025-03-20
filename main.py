@@ -90,11 +90,11 @@ if query:
             st.stop()
         
         chain = RetrievalQAWithSourcesChain.from_llm(llm=llm, retriever=vectorstore.as_retriever())
-        result = chain.invoke({"question": query})  # ✅ FIXED: Use `.run()`
+        result = chain.invoke({"question": query})  
         
-        if isinstance(result, dict):  # ✅ FIXED: Ensure `result` is a dictionary
+        if isinstance(result, dict):  
             st.header("Answer")
-            st.write(result.get("answer", "No answer found."))  # ✅ FIXED: Safer `.get()`
+            st.write(result.get("answer", "No answer found."))  
             
             sources = result.get("sources", "")
             if sources:
