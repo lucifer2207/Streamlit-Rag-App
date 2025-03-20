@@ -11,8 +11,7 @@ from langchain.document_loaders import UnstructuredURLLoader, PyMuPDFLoader
 from langchain.vectorstores import FAISS
 from dotenv import load_dotenv
 
-  # Load environment variables (Groq API key)
-
+# Load environment variables (Groq API key)
 groq_api_key = st.secrets["GROQ_API_KEY"]
 if not groq_api_key:
     st.error("Groq API key not found. Please check your .env file.")
@@ -85,14 +84,22 @@ if query:
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             vectorstore = pickle.load(f)
-            chain = RetrievalQAWithSourcesChain.from_llm(llm=llm, retriever=vectorstore.as_retriever())
-            result = chain({"question": query}, return_only_outputs=True)
-            
+        
+        if not isinstance(vectorstore, FAISS):
+            st.error("Loaded FAISS file is not a valid FAISS index. Please check your .pkl file.")
+            st.stop()
+        
+        chain = RetrievalQAWithSourcesChain.from_llm(llm=llm, retriever=vectorstore.as_retriever())
+        result = chain.invoke({"question": query})  # ✅ FIXED: Use `.run()`
+        
+        if isinstance(result, dict):  # ✅ FIXED: Ensure `result` is a dictionary
             st.header("Answer")
-            st.write(result["answer"])
+            st.write(result.get("answer", "No answer found."))  # ✅ FIXED: Safer `.get()`
             
             sources = result.get("sources", "")
             if sources:
                 st.subheader("Sources:")
                 for source in sources.split("\n"):
                     st.write(source)
+        else:
+            st.error("Unexpected result format. Please check the output.")
