@@ -6,3 +6,4 @@ faiss-cpu
 unstructured
 openai
 gdown
+langchain-groq
