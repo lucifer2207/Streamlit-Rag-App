@@ -1,0 +1,8 @@
+streamlit
+python-dotenv
+pickle-mixin
+langchain
+faiss-cpu
+unstructured
+openai
+gdown
