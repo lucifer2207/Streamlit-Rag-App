@@ -1,9 +1,9 @@
 streamlit
-python-dotenv
-pickle-mixin
-langchain
-faiss-cpu
-unstructured
-openai
 gdown
+python-dotenv
+langchain
+langchain-community
 langchain-groq
+faiss-cpu
+pymupdf
+sentence-transformers
