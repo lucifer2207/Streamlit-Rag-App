@@ -71,7 +71,7 @@ This app is deployed on **Streamlit Cloud**. To deploy your own version:
 Feel free to **fork the repo** and submit a pull request! For major changes, please open an issue first to discuss your ideas.  
 
 ## 📩 Contact
-For any questions or suggestions, reach out via **[LinkedIn]([https://www.linkedin.com/in/your-profile](https://www.linkedin.com/in/alok-yadav-0a71a4246/)** or **open an issue** in this repository.
+For any questions or suggestions, reach out via **LinkedIn--([https://www.linkedin.com/in/your-profile](https://www.linkedin.com/in/alok-yadav-0a71a4246/)** or **open an issue** in this repository.
 
 ---
 
