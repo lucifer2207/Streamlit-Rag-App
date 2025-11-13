@@ -1,9 +1,13 @@
 streamlit
-gdown
-python-dotenv
 langchain
 langchain-community
+langchain-core
 langchain-groq
-faiss-cpu
-pymupdf
 sentence-transformers
+faiss-cpu
+gdown
+python-dotenv
+pymupdf
+unstructured
+pdfminer.six
+tiktoken
