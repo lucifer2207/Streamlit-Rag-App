@@ -122,9 +122,8 @@ if query:
 
     # Prompt
     template = """
-You are an expert research assistant.
-Use ONLY the provided context to answer.
-If answer is not available, say "I don't know."
+Your are an expert in everything if context is avaialble give answer based on context if context is not available give answer based on your knowledge be very clear 
+and think properly"
 
 Question: {question}
 
@@ -149,6 +148,7 @@ Answer:
 
     st.header("Answer")
     st.write(response)
+
 
 
 
