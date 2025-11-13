@@ -5,15 +5,17 @@ import time
 import gdown
 from dotenv import load_dotenv
 
-# Updated LangChain imports
+# Latest correct imports
 from langchain_groq import ChatGroq
 from langchain_community.document_loaders import UnstructuredURLLoader, PyMuPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
 
-# Load Groq API key
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+
+# Load API Key
 groq_api_key = st.secrets["GROQ_API_KEY"]
 
 st.title("Question - Summary - Research Tool 📈")
@@ -43,16 +45,17 @@ llm = ChatGroq(
     api_key=groq_api_key
 )
 
-# Download FAISS if not available
+# Download FAISS if not exists
 if not os.path.exists(file_path):
     st.warning("FAISS index not found. Downloading from Google Drive...")
-    url = f"https://drive.google.com/uc?id={gdrive_file_id}"
-    gdown.download(url, file_path, quiet=False)
+    gdown.download(f"https://drive.google.com/uc?id={gdrive_file_id}", file_path, quiet=False)
 
+
+# Process Button Logic
 if process_clicked:
     all_docs = []
 
-    # Load URLs
+    # Process URLs
     if urls:
         loader = UnstructuredURLLoader(urls=urls)
         main_placeholder.text("Loading URL Data...")
@@ -61,14 +64,13 @@ if process_clicked:
         docs = splitter.split_documents(data)
         all_docs.extend(docs)
 
-    # Load PDFs
+    # Process PDF files
     if uploaded_files:
         for uploaded_file in uploaded_files:
             with open(uploaded_file.name, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
             loader = PyMuPDFLoader(uploaded_file.name)
-            main_placeholder.text(f"Processing PDF: {uploaded_file.name}")
             pdf_docs = loader.load()
 
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
@@ -87,29 +89,46 @@ if process_clicked:
 
         main_placeholder.text("Vectorstore built successfully! 🎉")
 
-# Query box
-query = st.text_input("Ask a Question:")
+
+# Query Input
+query = st.text_input("Ask a question:")
 
 if query:
-    if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            vectorstore = pickle.load(f)
+    if not os.path.exists(file_path):
+        st.error("Vector store not found. Please process data first.")
+        st.stop()
 
-        retriever = vectorstore.as_retriever()
+    with open(file_path, "rb") as f:
+        vectorstore = pickle.load(f)
 
-        chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            retriever=retriever,
-            chain_type="stuff",
-            return_source_documents=True
+    retriever = vectorstore.as_retriever()
+
+    # Prompt
+    template = """
+You are an expert research assistant.
+Use ONLY the provided context to answer.
+If answer is not available, say "I don't know."
+
+Question: {question}
+
+Context:
+{context}
+
+Answer:
+"""
+    prompt = PromptTemplate.from_template(template)
+
+    # Build RAG pipeline (NO deprecated code!)
+    rag_chain = (
+        RunnableParallel(
+            context=retriever, 
+            question=RunnablePassthrough()
         )
+        | prompt
+        | llm
+    )
 
-        result = chain.invoke({"query": query})
+    response = rag_chain.invoke(query)
 
-        st.header("Answer")
-        st.write(result["result"])
-
-        st.subheader("Sources")
-        for doc in result["source_documents"]:
-            st.write(doc.metadata)
-            st.write(doc.page_content[:200] + "...")
+    st.header("Answer")
+    st.write(response)
