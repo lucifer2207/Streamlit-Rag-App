@@ -11,6 +11,8 @@ from langchain_community.document_loaders import UnstructuredURLLoader, PyMuPDFL
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import AsyncHtmlLoader
+from langchain_community.document_transformers import Html2TextTransformer
 
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
@@ -147,4 +149,5 @@ Answer:
 
     st.header("Answer")
     st.write(response)
+
 
