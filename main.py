@@ -5,15 +5,15 @@ import time
 import gdown
 from dotenv import load_dotenv
 
-# LangChain updated imports
+# Updated LangChain imports
 from langchain_groq import ChatGroq
 from langchain_community.document_loaders import UnstructuredURLLoader, PyMuPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 
-# Load secrets
+# Load Groq API key
 groq_api_key = st.secrets["GROQ_API_KEY"]
 
 st.title("Question - Summary - Research Tool 📈")
@@ -43,36 +43,32 @@ llm = ChatGroq(
     api_key=groq_api_key
 )
 
-# Download FAISS Index if not exists
+# Download FAISS if not available
 if not os.path.exists(file_path):
     st.warning("FAISS index not found. Downloading from Google Drive...")
     url = f"https://drive.google.com/uc?id={gdrive_file_id}"
     gdown.download(url, file_path, quiet=False)
 
-# Process Data Button
 if process_clicked:
     all_docs = []
 
-    # Process URL data
+    # Load URLs
     if urls:
         loader = UnstructuredURLLoader(urls=urls)
-        main_placeholder.text("Loading Data from URLs... ⏳")
+        main_placeholder.text("Loading URL Data...")
         data = loader.load()
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=100
-        )
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
         docs = splitter.split_documents(data)
         all_docs.extend(docs)
 
-    # Process PDFs
+    # Load PDFs
     if uploaded_files:
         for uploaded_file in uploaded_files:
             with open(uploaded_file.name, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
             loader = PyMuPDFLoader(uploaded_file.name)
-            main_placeholder.text(f"Processing PDF: {uploaded_file.name} ⏳")
+            main_placeholder.text(f"Processing PDF: {uploaded_file.name}")
             pdf_docs = loader.load()
 
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
@@ -81,19 +77,18 @@ if process_clicked:
 
             os.remove(uploaded_file.name)
 
-    # Build FAISS Index
+    # Build FAISS
     if all_docs:
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vectorstore = FAISS.from_documents(all_docs, embeddings)
 
-        main_placeholder.text("Building Embedding Vectorstore... ⏳")
-        time.sleep(1)
-
         with open(file_path, "wb") as f:
             pickle.dump(vectorstore, f)
 
-# Query Section
-query = main_placeholder.text_input("Ask a Question:")
+        main_placeholder.text("Vectorstore built successfully! 🎉")
+
+# Query box
+query = st.text_input("Ask a Question:")
 
 if query:
     if os.path.exists(file_path):
