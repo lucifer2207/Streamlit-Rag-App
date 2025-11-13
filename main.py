@@ -56,13 +56,28 @@ if process_clicked:
     all_docs = []
 
     # Process URLs
+    # if urls:
+    #     loader = UnstructuredURLLoader(urls=urls)
+    #     main_placeholder.text("Loading URL Data...")
+    #     data = loader.load()
+    #     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    #     docs = splitter.split_documents(data)
+    #     all_docs.extend(docs)
     if urls:
-        loader = UnstructuredURLLoader(urls=urls)
-        main_placeholder.text("Loading URL Data...")
-        data = loader.load()
-        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-        docs = splitter.split_documents(data)
-        all_docs.extend(docs)
+    loader = AsyncHtmlLoader(urls)
+    main_placeholder.text("Loading Data from URLs...")
+
+    html_docs = loader.load()
+
+    # Convert HTML → clean text
+    html2text = Html2TextTransformer()
+    data = html2text.transform_documents(html_docs)
+
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    docs = splitter.split_documents(data)
+
+    all_docs.extend(docs)
+
 
     # Process PDF files
     if uploaded_files:
@@ -132,3 +147,4 @@ Answer:
 
     st.header("Answer")
     st.write(response)
+
