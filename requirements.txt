@@ -10,5 +10,10 @@ gdown
 python-dotenv
 pymupdf
 unstructured
+unstructured[html]
+beautifulsoup4
+lxml
+html5lib
+requests
 pdfminer.six
 tiktoken
