@@ -78,7 +78,7 @@ if process_clicked:
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
         docs = splitter.split_documents(data)
     
-         all_docs.extend(docs)
+        all_docs.extend(docs)
 
 
     # Process PDF files
@@ -149,6 +149,7 @@ Answer:
 
     st.header("Answer")
     st.write(response)
+
 
 
 
