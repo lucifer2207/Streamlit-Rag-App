@@ -66,19 +66,19 @@ if process_clicked:
     #     docs = splitter.split_documents(data)
     #     all_docs.extend(docs)
     if urls:
-    loader = AsyncHtmlLoader(urls)
-    main_placeholder.text("Loading Data from URLs...")
+     loader = AsyncHtmlLoader(urls)
+     main_placeholder.text("Loading Data from URLs...")
 
-    html_docs = loader.load()
+     html_docs = loader.load()
 
     # Convert HTML → clean text
-    html2text = Html2TextTransformer()
-    data = html2text.transform_documents(html_docs)
+     html2text = Html2TextTransformer()
+     data = html2text.transform_documents(html_docs)
 
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    docs = splitter.split_documents(data)
+     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+     docs = splitter.split_documents(data)
 
-    all_docs.extend(docs)
+     all_docs.extend(docs)
 
 
     # Process PDF files
@@ -149,5 +149,6 @@ Answer:
 
     st.header("Answer")
     st.write(response)
+
 
 
