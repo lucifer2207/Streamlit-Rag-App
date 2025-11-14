@@ -1,113 +1,4 @@
-import os
-import streamlit as st
-import pickle
-import time
-import gdown
-from dotenv import load_dotenv
-
-# Latest correct imports
-from langchain_groq import ChatGroq
-from langchain_community.document_loaders import UnstructuredURLLoader, PyMuPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import AsyncHtmlLoader
-from langchain_community.document_transformers import Html2TextTransformer
-
-from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-
-# Load API Key
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-st.title("Question - Summary - Research Tool 📈")
-st.sidebar.title("Input Data")
-
-# Collect URLs
-urls = []
-for i in range(3):
-    url = st.sidebar.text_input(f"URL {i+1}")
-    if url:
-        urls.append(url)
-
-# Collect PDFs
-uploaded_files = st.sidebar.file_uploader("Upload PDFs", accept_multiple_files=True, type=["pdf"])
-
-process_clicked = st.sidebar.button("Process Data")
-
-file_path = "faiss_store_groq.pkl"
-gdrive_file_id = "1g77MsT-99yvYyCJAUsDYKBhsyY6PfaN8"
-
-main_placeholder = st.empty()
-
-# LLM
-llm = ChatGroq(
-    model_name="llama-3.3-70b-versatile",
-    temperature=0.2,
-    api_key=groq_api_key
-)
-
-# Download FAISS if not exists
-if not os.path.exists(file_path):
-    st.warning("FAISS index not found. Downloading from Google Drive...")
-    gdown.download(f"https://drive.google.com/uc?id={gdrive_file_id}", file_path, quiet=False)
-
-
-# Process Button Logic
-if process_clicked:
-    all_docs = []
-
-    # Process URLs
-    # if urls:
-    #     loader = UnstructuredURLLoader(urls=urls)
-    #     main_placeholder.text("Loading URL Data...")
-    #     data = loader.load()
-    #     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    #     docs = splitter.split_documents(data)
-    #     all_docs.extend(docs)
-    if urls:
-        main_placeholder.text("Loading Data from URLs...")
-    
-        loader = UnstructuredURLLoader(
-            urls=urls,
-            continue_on_failure=True
-        )
-    
-        data = loader.load()
-    
-        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-        docs = splitter.split_documents(data)
-    
-        all_docs.extend(docs)
-
-
-    # Process PDF files
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            with open(uploaded_file.name, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
-            loader = PyMuPDFLoader(uploaded_file.name)
-            pdf_docs = loader.load()
-
-            splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
-            docs = splitter.split_documents(pdf_docs)
-            all_docs.extend(docs)
-
-            os.remove(uploaded_file.name)
-
-    # Build FAISS
-    if all_docs:
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vectorstore = FAISS.from_documents(all_docs, embeddings)
-
-        with open(file_path, "wb") as f:
-            pickle.dump(vectorstore, f)
-
-        main_placeholder.text("Vectorstore built successfully! 🎉")
-
-
-# Query Input
+# ------------------ RAG Query & Execution (REPLACE your existing query block) ------------------
 query = st.text_input("Ask a question:")
 
 if query:
@@ -115,42 +6,86 @@ if query:
         st.error("Vector store not found. Please process data first.")
         st.stop()
 
+    # Load vectorstore
     with open(file_path, "rb") as f:
         vectorstore = pickle.load(f)
 
-    retriever = vectorstore.as_retriever()
+    # Make a retriever
+    retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 8})
 
-    # Prompt
-    template = """
-Your are an expert in everything if context is avaialble give answer based on context if context is not available give answer based on your knowledge be very clear 
-and think properly"
+    # Step 1: retrieve documents (wrap to catch embed errors)
+    try:
+        docs = retriever.get_relevant_documents(query)
+    except Exception as e:
+        # This is likely coming from the embedding library (sentence-transformers / torch)
+        st.error("Failed while computing embeddings for the query. See diagnostics below.")
+        st.write("Error type:", type(e).__name__)
+        st.write(str(e))
+        st.info(
+            "Common causes: incompatible/pinned versions of sentence-transformers, transformers, or torch. "
+            "See the suggested requirements.txt in the app root."
+        )
+        st.stop()
 
-Question: {question}
+    if not docs:
+        st.warning("No relevant documents found. Try processing more sources or check your inputs.")
+    else:
+        # Build a context string (limit to top 5 docs and first 1000 chars each to avoid huge prompts)
+        top_docs = docs[:5]
+        context_parts = []
+        for i, d in enumerate(top_docs, start=1):
+            text_snippet = (d.page_content[:1000] + "...") if len(d.page_content) > 1000 else d.page_content
+            # include some metadata if present
+            meta = d.metadata if getattr(d, "metadata", None) else {}
+            source = meta.get("source") or meta.get("url") or meta.get("file_path") or f"doc_{i}"
+            context_parts.append(f"Source: {source}\n\n{text_snippet}")
+
+        context = "\n\n---\n\n".join(context_parts)
+
+        # Prompt template: use your template but ensure placeholders match
+        TEMPLATE = """
+You are an expert research assistant. Use ONLY the provided context to answer concisely.
+If the answer is not present in the context, say "I don't know."
 
 Context:
 {context}
 
 Answer:
 """
-    prompt = PromptTemplate.from_template(template)
+        prompt_text = TEMPLATE.format(question=query, context=context)
 
-    # Build RAG pipeline (NO deprecated code!)
-    rag_chain = (
-        RunnableParallel(
-            context=retriever, 
-            question=RunnablePassthrough()
-        )
-        | prompt
-        | llm
-    )
+        # Call the LLM (try .invoke first, fallback to .generate)
+        try:
+            # Many lightweight wrappers accept a simple string
+            response = llm.invoke(prompt_text)
+            # If llm.invoke returns a dict/object, try to extract text
+            if isinstance(response, dict):
+                out = response.get("text") or response.get("answer") or str(response)
+            else:
+                out = str(response)
+        except Exception as e_invoke:
+            # fallback to .generate (common LangChain pattern)
+            try:
+                gen = llm.generate([prompt_text])
+                # extract text from generation object (many implementations store generations[0][0].text)
+                out = None
+                if hasattr(gen, "generations"):
+                    g0 = gen.generations[0][0]
+                    out = getattr(g0, "text", str(g0))
+                else:
+                    out = str(gen)
+            except Exception as e_gen:
+                st.error("LLM call failed. See error details below.")
+                st.write("invoke error:", type(e_invoke).__name__, str(e_invoke))
+                st.write("generate error:", type(e_gen).__name__, str(e_gen))
+                st.stop()
 
-    response = rag_chain.invoke(query)
+        st.header("Answer")
+        st.write(out)
 
-    st.header("Answer")
-    st.write(response)
-
-
-
-
-
-
+        st.subheader("Context / Source snippets used")
+        for i, d in enumerate(top_docs, start=1):
+            meta = d.metadata if getattr(d, "metadata", None) else {}
+            source = meta.get("source") or meta.get("url") or meta.get("file_path") or f"doc_{i}"
+            st.write(f"**Source {i}:** {source}")
+            st.write(d.page_content[:1000] + ("..." if len(d.page_content) > 1000 else ""))
