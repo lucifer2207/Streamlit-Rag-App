@@ -4,21 +4,16 @@ langchain-community
 langchain-core
 langchain-text-splitters
 langchain-groq
-
 sentence-transformers
 faiss-cpu
 gdown
 python-dotenv
 pymupdf
-
-# URL loading dependencies
 unstructured
 unstructured[html]
 beautifulsoup4
 lxml
 html5lib
 requests
-html2text
-
 pdfminer.six
 tiktoken
